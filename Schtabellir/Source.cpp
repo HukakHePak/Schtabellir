@@ -102,6 +102,9 @@ int main() {
 		frame.push_back(row);
 	}
 
+
+
+
 	frame[2][0] = 0x00FF0000;
 	frame[0][0] = 0xFF000000;
 	
