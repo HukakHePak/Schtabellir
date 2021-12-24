@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Schtabellir", "Schtabellir\Schtabellir.vcxproj", "{8193EA23-2D0B-4254-90AF-AF0A94EDD4DA}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ceerte.lib", "..\..\ceerte.lib\ceerte.lib.vcxproj", "{539A88F4-8CF3-4A95-A8E3-B13CB4447537}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ceerte.lib", "..\ceerte.lib\ceerte.lib.vcxproj", "{539A88F4-8CF3-4A95-A8E3-B13CB4447537}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

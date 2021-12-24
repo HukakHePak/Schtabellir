@@ -1,14 +1,16 @@
+пїњ
+#include "../../ceerte.lib/ceerte.h"
 #include <iostream>
-#include <vector>
 #include <cmath>
-#include <Windows.h>
 #include <conio.h>
-#include "../../../ceerte.lib/ceerte.h"
+#include "SFML/Graphics.hpp"
 
 using namespace std;
+using namespace sf;
 
 class Schtabellir
 {
+protected:
 	struct position
 	{
 		double x, y;
@@ -22,15 +24,16 @@ class Schtabellir
 
 	struct size
 	{
-		int width, height;
+		double width, height;
 	};
 
 	vector <vector<unsigned int>> frame;
-	position pos{ 0, 0 , 0};
+	position robotPosition{ 0, 0 , 0 };
 	size robotSize{ 0 ,0 };
-	size safeSize{ 0, 0 };
-	int safePadding = 2;
-
+	size frameSize{ 0, 0 };
+	double safePadding = 0;
+	double safeRadius = 0;
+	color colorSensetivity = { 0,0,0 };
 
 	color getColor(unsigned int value) {
 		union X
@@ -42,7 +45,7 @@ class Schtabellir
 		return { x.bytes[1], x.bytes[2], x.bytes[3] };
 	}
 
-	double getSin(double angle) 
+	double getSin(double angle)
 	{
 		return sin(angle * 3.1415 / 180) * (-1);
 	}
@@ -52,20 +55,46 @@ class Schtabellir
 		return cos(angle * 3.1415 / 180);
 	}
 
-	void printPoint(int x, int y, int color) 
+	void printPoint(int x, int y, int color)
 	{
 		GotoXY(x, y);
 		printColor(color);
 	}
 
-public:
-	Schtabellir(vector <vector<unsigned int>> &frame) : frame(frame)
+	bool isSafePosition(position pos)
 	{
-		update(frame);
-		safeSize = { (int)frame[0].size() - safePadding - robotSize.width, (int)frame.size() - safePadding - robotSize.width };
+		return pos.x > safePadding + safeRadius
+			&& pos.x < frameSize.width - (safeRadius + safePadding)
+			&& pos.y > safePadding + safeRadius
+			&& pos.y < frameSize.height - (safeRadius + safePadding);
+	}
+	
+	void setFrameSize()
+	{
+		frameSize = { (double)frame.size(), (double)frame[0].size() };
 	}
 
-	void update(vector <vector<unsigned int>> &frame)
+	void setSafeRadius()
+	{
+		safeRadius = sqrt(pow(robotSize.width, 2) + pow(robotSize.width, 2)) / 2;
+	}
+
+
+public:
+	Schtabellir()
+	{
+
+	}
+
+	Schtabellir(vector <vector<unsigned int>>& frame, double padding, color sensetivity) 
+		: frame(frame), colorSensetivity(sensetivity), safePadding(padding / 20)
+	{
+		locate(frame);
+		setFrameSize();
+		setSafeRadius();
+	}
+
+	void locate(vector <vector<unsigned int>>& frame)
 	{
 		position left{ 0,0 };
 		position right{ 0,0 };
@@ -75,38 +104,56 @@ public:
 			for (int j = 0; j < frame[i].size(); j++)
 			{
 				color c = getColor(frame[i][j]);
-				if (c.g >= 200) left = { (double) i, (double) j };
-				if (c.b >= 200) right = { (double) i, (double) j };
+				if (c.g >= colorSensetivity.g) 
+					left = { (double)i, (double)j };
+				if (c.b >= colorSensetivity.g) 
+					right = { (double)i, (double)j };
 			}
 		}
-		double proX = left.x - right.x;
-		double proY = left.y - right.y;
-		double size = sqrt(pow(proX, 2) + pow(proY, 2));
-		robotSize = { (int) size };
-		pos = { left.x - (proX) / 2 , left.y - (proY) / 2, asin(proX / size) * 180 / 3.1415 * (-1) };
+		double proectionX = left.x - right.x;
+		double proectionY = left.y - right.y;
+		double tangens = sqrt(pow(proectionX, 2) + pow(proectionY, 2));
+		robotSize = { tangens , tangens};
+		robotPosition = { left.x - (proectionX) / 2 , 
+			left.y - (proectionY) / 2, asin(proectionX / tangens) * 180 / 3.1415 * (-1)};
 	}
 
-	void rotate(int relativeAngle) 
+	void rotate(double relativeAngle)
 	{
-		pos.angle += relativeAngle;
+		robotPosition.angle += relativeAngle;
 	}
 
-	void rotation(int absoluteAngle)
+	void rotation(double absoluteAngle)
 	{
-		pos.angle = absoluteAngle;
+		robotPosition.angle = absoluteAngle;
 	}
 
-	void move(int milimeters) 
+	bool move(double milimeters)
 	{
-		pos.x += floor(milimeters * getCos(pos.angle));
-		pos.y += floor(milimeters * getSin(pos.angle));
+		position newPos = { robotPosition.x + milimeters / 20 * getCos(robotPosition.angle),
+			robotPosition.y + milimeters / 20 * getSin(robotPosition.angle), robotPosition.angle };
+		if (isSafePosition(newPos))
+		{
+			robotPosition = newPos;
+			return true;
+		}
+		return false;
 	}
-	
-	void render()
+
+	position getPosition()
 	{
-		printPoint(pos.x * 2, pos.y, 4);
-		printPoint((pos.x + getCos(pos.angle - 90) * (robotSize.width / 2)) * 2, pos.y + getSin(pos.angle - 90) * (robotSize.width / 2), 1);
-		printPoint((pos.x + getCos(pos.angle + 90) * (robotSize.width / 2)) * 2, pos.y + getSin(pos.angle + 90) * (robotSize.width / 2), 2);
+		return robotPosition;
+	}
+
+	virtual void render()
+	{
+		printPoint(robotPosition.x * 2, robotPosition.y, 4);
+
+		printPoint(robotPosition.x + getCos(robotPosition.angle - 90) * robotSize.width, 
+			robotPosition.y + getSin(robotPosition.angle - 90) * (robotSize.width / 2), 1);
+
+		printPoint(robotPosition.x + getCos(robotPosition.angle + 90) * robotSize.width, 
+			robotPosition.y + getSin(robotPosition.angle + 90) * (robotSize.width / 2), 2);
 	}
 
 	~Schtabellir()
@@ -115,78 +162,130 @@ public:
 	}
 };
 
+
+class GraphicSchtabellir : public Schtabellir
+{
+	RenderWindow window;
+	CircleShape robotPoint;
+	RectangleShape robotRectangle;
+	CircleShape leftPoint;
+	CircleShape rightPoint;
+	RectangleShape safeZone;
+	CircleShape robotSafeCircle;
+
+public:
+	GraphicSchtabellir(vector <vector<unsigned int>>& frame, double padding, color sensetivity)
+	{
+		this->frame = frame;
+		this->colorSensetivity = sensetivity;
+		this->safePadding = padding / 20;
+
+		setFrameSize();
+		
+
+		window.create(VideoMode(frameSize.width, frameSize.height), "My window");
+		window.clear(Color(0, 255, 0));
+		
+		locate(frame);
+		setSafeRadius();
+
+		robotPoint.setRadius(3.f);
+		robotPoint.setFillColor(Color::Red);
+
+		leftPoint.setRadius(3.f);
+		leftPoint.setFillColor(Color::Green);
+
+		rightPoint.setRadius(3.f);
+		rightPoint.setFillColor(Color::Blue);
+
+		robotRectangle.setSize(Vector2f(robotSize.width + 6, robotSize.width + 6));
+		robotRectangle.setOrigin((robotSize.width + 6) / 2, (robotSize.width + 6) / 2);
+		robotRectangle.setFillColor(Color(70, 70, 70));
+			
+		safeZone.setSize(Vector2f(frameSize.width - robotSize.width - safePadding * 2, 
+			frameSize.height - robotSize.height - safePadding * 2));
+		safeZone.setPosition(safePadding + robotSize.width / 2, safePadding + robotSize.height / 2);
+		safeZone.setFillColor(Color(150, 150, 150));
+
+		robotSafeCircle.setRadius(safeRadius + 3);
+		robotSafeCircle.setOrigin(safeRadius, safeRadius);
+		robotSafeCircle.setFillColor(Color(200, 200, 50));
+	}
+
+	virtual void render()
+	{
+		window.clear(Color(150, 0, 0));
+		window.draw(safeZone);
+
+		robotRectangle.setPosition(robotPosition.x + 3, robotPosition.y + 3);
+		robotRectangle.setRotation(-robotPosition.angle - 90);
+		robotPoint.setPosition(robotPosition.x, robotPosition.y);
+		robotSafeCircle.setPosition(robotPosition.x, robotPosition.y);
+		rightPoint.setPosition((robotPosition.x + getCos(robotPosition.angle - 90) * (robotSize.width / 2)), 
+			robotPosition.y + getSin(robotPosition.angle - 90) * (robotSize.width / 2));
+		leftPoint.setPosition((robotPosition.x + getCos(robotPosition.angle + 90) * (robotSize.width / 2)), 
+			robotPosition.y + getSin(robotPosition.angle + 90) * (robotSize.width / 2));
+
+		window.draw(robotSafeCircle);
+		window.draw(robotRectangle);
+		window.draw(robotPoint);
+		window.draw(leftPoint);
+		window.draw(rightPoint);
+
+		window.display();
+	}
+
+	~GraphicSchtabellir()
+	{
+		window.close();
+	}
+};
+
+
 int main() {
 	vector <vector<unsigned int>> frame;
-	for (int i = 0; i < 30; i++)
+	for (int i = 0; i < 800; i++)
 	{
 		vector<unsigned int> row;
-		for (int j = 0; j < 30; j++)
+		for (int j = 0; j < 600; j++)
 		{
 			row.push_back(0);
 		}
 		frame.push_back(row);
 	}
 
-	//system("cls");
-	SetTextColor(15);
-	for (int i = 0; i < frame.size(); i++)
-	{
-		for (int j = 0; j < frame[i].size(); j++)
-		{
-			//cout << (char)219 << (char)219;
-		}
-		cout << endl;
-	}
+	frame[140][100] = 0x00FF0000;
+	frame[100][100] = 0xFF000000;
 
-	frame[18][1] = 0x00FF0000;
-	frame[1][1] = 0xFF000000;
-	
-	Schtabellir schtabellir(frame);
-	//schtabellir.render();
-	////schtabellir.rotate(180);
-	////schtabellir.rotation(0);
-	//schtabellir.move(20);
-	///*schtabellir.render();
-	//schtabellir.rotate(180);
-	//schtabellir.move(7);
-	//schtabellir.render();
-	//schtabellir.rotation(0);
-	//schtabellir.move(7);*/
-	//schtabellir.render();
-	//schtabellir.rotation(0);
-	//schtabellir.move(10);
+	GraphicSchtabellir schtabellir(frame, 200, { 200, 200, 200});
+
 	schtabellir.render();
 	char key;
 	while (true)
 	{
-		if (_kbhit())				//отслеживает факт нажати€ клавиши
+		if (_kbhit())
 		{
-			key = _getch();			// принимает значени€ клавиш
+			key = _getch();
 
-			if (key == 27)	break;			// Escape -> выходит из цикла
-
+			if (key == 27)	break;
 
 			switch (key)
 			{
 			case 77:
-				schtabellir.rotate(-15);
+				schtabellir.rotate(-10);
 				break;
 			case 75:
-				schtabellir.rotate(15);
+				schtabellir.rotate(10);
 				break;
 			case 72:
-				schtabellir.move(2);
+				schtabellir.move(200);
 				break;
 			case 80:
-				schtabellir.move(-2);
+				schtabellir.move(-200);
 				break;
 			}
 			system("cls");
 			schtabellir.render();
 		}
 	}
-
-	//shtabellir.getPosition();
-	//system("pause");
-	//_getch();
 }
